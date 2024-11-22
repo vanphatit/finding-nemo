@@ -6,7 +6,8 @@ import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from simpleai.search import SearchProblem, astar, breadth_first, depth_first, greedy
 
-# Define cost of moving around the map
+
+# Chi phí di chuyển giữa các ô
 cost_regular = 1.0
 COSTS = {
     "up": cost_regular,

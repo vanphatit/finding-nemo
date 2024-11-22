@@ -8,7 +8,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import time
 
-# Define cost of moving around the map
+# Chi phí di chuyển giữa các ô
 cost_regular = 1.0
 COSTS = {
     "up": cost_regular,
