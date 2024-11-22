@@ -1,4 +1,5 @@
 import math
+import time
 import random
 from simpleai.search import SearchProblem, astar, breadth_first, depth_first, greedy
 import numpy as np
@@ -41,7 +42,7 @@ def generate_maze(width, height):
     return maze
 
 # Khởi tạo bản đồ
-M, N = 21, 50
+M, N = 25, 45
 generated_maze = generate_maze(N, M)
 MAP = ["".join(row) for row in generated_maze]
 MAP = [list(row) for row in MAP]
@@ -100,8 +101,8 @@ class App(tk.Tk):
         super().__init__()
         self.dem = 0
         self.selected_algorithm = tk.StringVar(value="astar")
-        self.title('Tìm đường trong mê cung')
-        self.geometry(f"{N*21+220}x{M*21+60}")
+        self.title('Pinky tìm đường trong mê cung')
+        self.geometry(f"{N*21+270}x{M*21+60}")
         self.cvs_me_cung = tk.Canvas(self, width=N*21, height=M*21, relief=tk.SUNKEN, border=1)
         self.image_tk = ImageTk.PhotoImage(Image.open("img_wallpaper.png"))
         self.update_map()
@@ -111,29 +112,29 @@ class App(tk.Tk):
         self.pinky_tk = ImageTk.PhotoImage(pinky_img)
 
         # Frame menu chức năng
-        menu_frame = tk.LabelFrame(self, text="Chức năng", font=("Arial", 13, "bold"), padx=10, pady=10)
-        btn_start = tk.Button(menu_frame, text='Bắt đầu', width=14, bg="#4CAF50", fg="white",
+        menu_frame = tk.LabelFrame(self, text="Chức năng", font=("Arial", 13, "bold"), padx=10, pady=10, bg="#F7F7F7")
+        btn_start = tk.Button(menu_frame, text='🟢 Bắt đầu', width=18, bg="#4CAF50", fg="white", font=("Arial", 11, "bold"),
                             command=self.btn_start_click)
-        btn_start.pack(pady=5)
-        btn_reset = tk.Button(menu_frame, text='Đặt lại', width=14, bg="#F44336", fg="white",
+        btn_start.pack(pady=6)
+        btn_reset = tk.Button(menu_frame, text='🔄 Đặt lại', width=18, bg="#F44336", fg="white", font=("Arial", 11, "bold"),
                             command=self.btn_reset_click)
-        btn_reset.pack(pady=5)
-        btn_generate = tk.Button(menu_frame, text='Tạo bản đồ', width=14, bg="#2196F3", fg="white",
+        btn_reset.pack(pady=6)
+        btn_generate = tk.Button(menu_frame, text='🌟 Tạo bản đồ', width=18, bg="#2196F3", fg="white", font=("Arial", 11, "bold"),
                             command=self.generate_new_map)
-        btn_generate.pack(pady=5)
-        btn_empty_map = tk.Button(menu_frame, text='Không bản đồ', width=14, bg="#FFC107", fg="black",
+        btn_generate.pack(pady=6)
+        btn_empty_map = tk.Button(menu_frame, text='❌ Không bản đồ', width=18, bg="#FFC107", fg="black", font=("Arial", 11, "bold"),
                             command=self.generate_empty_map)
-        btn_empty_map.pack(pady=5)
+        btn_empty_map.pack(pady=6)
 
         # Label chọn thuật toán
-        lbl_algorithm = tk.Label(menu_frame, text="Thuật toán:", font=("Arial", 13, "bold"))
-        lbl_algorithm.pack(pady=5)
+        lbl_algorithm = tk.Label(menu_frame, text="Thuật toán:", font=("Arial", 12, "bold"), bg="#F7F7F7")
+        lbl_algorithm.pack(pady=10)
         algorithm_menu = tk.OptionMenu(menu_frame, self.selected_algorithm, "astar", "bfs", "dfs", "greedy")
-        algorithm_menu.config(width=10, font=("Arial", 13), bg="#EEEEEE")
-        algorithm_menu.pack(pady=5)
+        algorithm_menu.config(width=12, font=("Arial", 12), bg="#EEEEEE")
+        algorithm_menu.pack(pady=0)
 
         # Thêm hình ảnh dưới mục chọn thuật toán
-        maze_image = Image.open("img_wallpaper.png").resize((160, 160))  # Thay bằng đường dẫn tới tệp ảnh của bạn
+        maze_image = Image.open("img_wallpaper.png").resize((200, 200))  # Thay bằng đường dẫn tới tệp ảnh của bạn
         self.maze_tk = ImageTk.PhotoImage(maze_image)  # Chuyển ảnh thành định dạng Tkinter
         maze_image_label = tk.Label(menu_frame, image=self.maze_tk)  # Gắn ảnh vào Label
         maze_image_label.pack(pady=10)  # Hiển thị ảnh
@@ -141,9 +142,9 @@ class App(tk.Tk):
         # Label để hiển thị thông tin trạng thái
         self.info_label = tk.Label(self, text="Số ô đã thăm: 0 | Số ô đường đi: 0",
                                 font=("Arial", 12), anchor="center", justify="center", bg="#EEEEEE", relief="sunken", padx=5)
-        self.info_label.grid(row=1, column=0, columnspan=2, sticky="we", padx=10, pady=10)
+        self.info_label.grid(row=1, column=0, columnspan=2, sticky="we", padx=5, pady=10)
 
-        self.cvs_me_cung.grid(row=0, column=0, padx=10, pady=5)
+        self.cvs_me_cung.grid(row=0, column=0, padx=10, pady=0)
         menu_frame.grid(row=0, column=1, padx=0, pady=0, sticky=tk.N)
         self.resizable(False, False)
 
@@ -198,8 +199,11 @@ class App(tk.Tk):
             self.dem += 1
 
     def btn_start_click(self):
-
         problem = MazeSolver(MAP)
+        
+        # Bắt đầu đo thời gian
+        start_time = time.perf_counter()
+        
         algorithm = self.selected_algorithm.get()
         if algorithm == "astar":
             result = astar(problem, graph_search=True)
@@ -209,7 +213,11 @@ class App(tk.Tk):
             result = depth_first(problem, graph_search=True)
         elif algorithm == "greedy":
             result = greedy(problem, graph_search=True)
-            
+        
+        # Kết thúc đo thời gian
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time  # Tính thời gian chạy
+        
         # Lấy các trạng thái đã dò
         explored = problem.explored
         for state in explored:
@@ -233,7 +241,7 @@ class App(tk.Tk):
                 self.cvs_me_cung.update()
 
         # Cập nhật thông tin số ô đã thăm và số ô đường đi
-        self.info_label.config(text=f"Số ô đã thăm: {len(explored)} | Số ô đường đi: {len(path)} | Đã tạo xong đường đi, bấm Reset trước khi chọn ô mới")
+        self.info_label.config(text=f"Số ô đã thăm: {len(explored)} | Số ô đường đi: {len(path)} | Thời gian dò tìm: {elapsed_time:.10f} giây | Đã tạo xong đường đi, bấm Reset trước khi chọn ô mới")
 
     def btn_reset_click(self):
         self.update_map()

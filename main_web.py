@@ -1,9 +1,10 @@
 import math
+import time
 import random
 from PIL import Image, ImageDraw
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
-from simpleai.search import SearchProblem, astar
+from simpleai.search import SearchProblem, astar, breadth_first, depth_first, greedy
 
 # Define cost of moving around the map
 cost_regular = 1.0
@@ -116,9 +117,12 @@ cell_size = 21  # Kích thước ô
 # Streamlit
 st.title("Pinky tìm đường trong mê cung")
 
-# Kiểm tra nếu mê cung chưa tồn tại trong session_state, tạo mới
+# Lưu mê cung gốc khi tạo mới
+if "original_maze" not in st.session_state:
+    st.session_state["original_maze"] = generate_maze(N, M)
+
 if "maze" not in st.session_state:
-    st.session_state["maze"] = generate_maze(N, M)
+    st.session_state["maze"] = [row[:] for row in st.session_state["original_maze"]]
 
 if "dem" not in st.session_state:
     st.session_state["dem"] = 0
@@ -127,10 +131,26 @@ if "points" not in st.session_state:
     st.session_state["points"] = []
 
 # Nút tạo mê cung mới
-if st.button("Tạo mê cung mới"):
-    st.session_state["maze"] = generate_maze(N, M)
+if st.button("Tạo mê cung mới (map mới)"):
+    st.session_state["original_maze"] = generate_maze(N, M)
+    st.session_state["maze"] = [row[:] for row in st.session_state["original_maze"]]
     st.session_state["points"] = []  # Reset các điểm đã chọn
     st.session_state["dem"] = 0
+    if "directed" in st.session_state:
+        del st.session_state["directed"]  # Xóa trạng thái 'directed' nếu tồn tại
+
+# Nút Reset Map
+if st.button("Vẽ lại mê cung (map cũ)"):
+    st.session_state["maze"] = [row[:] for row in st.session_state["original_maze"]]
+    st.session_state["points"] = []  # Reset các điểm đã chọn
+    st.session_state["dem"] = 0
+    if "directed" in st.session_state:
+        del st.session_state["directed"]  # Xóa trạng thái 'directed' nếu tồn tại
+
+algorithm = st.selectbox(
+    "Chọn thuật toán tìm đường",
+    ("A*", "BFS", "DFS", "Greedy")
+)
 
 # Hiển thị canvas với mê cung
 maze_image = draw_maze_image(st.session_state["maze"], cell_size)
@@ -160,27 +180,63 @@ if st.session_state["dem"] == 2:
             MAP[y1][x1] = 'o'
             MAP[y2][x2] = 'x'
 
+            # Bắt đầu đo thời gian
+            start_time = time.perf_counter()
+
             # Áp dụng giải thuật A*
             problem = MazeSolver(MAP)
-            result = astar(problem, graph_search=True)
 
-            # Trích xuất đường đi
+            if algorithm == "A*":
+                result = astar(problem, graph_search=True)
+            elif algorithm == "BFS":
+                result = breadth_first(problem, graph_search=True)
+            elif algorithm == "DFS":
+                result = depth_first(problem, graph_search=True)
+            elif algorithm == "Greedy":
+                result = greedy(problem, graph_search=True)
+
+            # Kết thúc đo thời gian
+            end_time = time.perf_counter()
+            elapsed_time = end_time - start_time  # Tính thời gian chạy
+
+            # Trích xuất đường đi và các điểm đã dò
             path = [x[1] for x in result.path()]
+            explored = problem.explored  # Các điểm đã dò
+
+            # Tính số bước
+            steps_explored = len(explored)
+            steps_path = len(path)
+
             frames = []
             frame = draw_maze_image(st.session_state["maze"], cell_size)
+
+            # Vẽ các điểm đã dò
+            for ex in explored:
+                x, y = ex
+                draw = ImageDraw.Draw(frame)
+                top_left = (x * cell_size, y * cell_size)
+                bottom_right = ((x + 1) * cell_size, (y + 1) * cell_size)
+                draw.rectangle([top_left, bottom_right], fill="#FFFF00", outline="#FFFF00")  # Màu vàng
+                frames.append(frame.copy())
+
+            # Vẽ đường đi
             for p in path:
                 x, y = p
                 draw = ImageDraw.Draw(frame)
-                top_left = (x * cell_size + 2, y * cell_size + 2)
-                bottom_right = ((x + 1) * cell_size - 2, (y + 1) * cell_size - 2)
-                draw.ellipse([top_left, bottom_right], fill="#FF00FF", outline="#FF00FF")
+                top_left = (x * cell_size, y * cell_size)
+                bottom_right = ((x + 1) * cell_size, (y + 1) * cell_size)
+                draw.rectangle([top_left, bottom_right], fill="#5AB2FF", outline="#5AB2FF")  # Màu xanh
                 frames.append(frame.copy())
 
             # Tạo ảnh GIF từ các khung
             frame_one = frames[0]
-            frame_one.save("maze.gif", format="GIF", append_images=frames, save_all=True, duration=5, loop=0)
+            frame_one.save("maze.gif", format="GIF", append_images=frames, save_all=True, duration=0.01, loop=1)
 
             st.image("maze.gif")
+            # In kết quả
+            st.write(f"Số bước đã dò: {steps_explored}")
+            st.write(f"Số bước đã đi: {steps_path}")
+            st.write(f"Thời gian dò tìm: {elapsed_time:.10f} giây")
             st.info("Nhấn Ctrl + R để làm mới ứng dụng")
 
 # Lấy tọa độ các điểm từ canvas
@@ -196,17 +252,20 @@ if canvas_result.json_data is not None:
         y = int(py) // cell_size
 
         print(f"Chọn tọa độ ({x}, {y})")
-        if st.session_state["maze"][y][x] != "#":  # Không chọn vào tường
+        if st.session_state["maze"][y][x] == "o":
+            st.error("Điểm này đã là điểm bắt đầu (o). Vui lòng chọn điểm khác!")
+        elif st.session_state["maze"][y][x] == "x":
+            st.error("Điểm này đã là điểm kết thúc (x). Vui lòng chọn điểm khác!")
+        elif st.session_state["maze"][y][x] != "#":  # Không chọn vào tường
             if st.session_state["dem"] < 2:
-                if st.session_state["dem"] == 0:  # Điểm đầu
+                st.session_state["dem"] += 1
+                if st.session_state["dem"] == 1:  # Điểm đầu
                     st.session_state["maze"][y][x] = "o"
                     st.session_state["points"].append((x, y))
-                    st.session_state["dem"] += 1
                     maze_image = draw_maze_image(st.session_state["maze"], cell_size)
-                elif st.session_state["dem"] == 1:  # Điểm cuối
+                elif st.session_state["dem"] == 2:  # Điểm cuối
                     st.session_state["maze"][y][x] = "x"
                     st.session_state["points"].append((x, y))
-                    st.session_state["dem"] += 1
                     maze_image = draw_maze_image(st.session_state["maze"], cell_size)
         else:
             st.error("Không thể chọn vào tường")
