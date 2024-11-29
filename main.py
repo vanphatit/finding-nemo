@@ -244,9 +244,16 @@ class App(tk.Tk):
         self.info_label.config(text=f"Số ô đã thăm: {len(explored)} | Số ô đường đi: {len(path)} | Thời gian dò tìm: {elapsed_time:.10f} giây | Đã tạo xong đường đi, bấm Reset trước khi chọn ô mới")
 
     def btn_reset_click(self):
-        self.update_map()
-        self.dem = 0
+        global MAP
+        self.update_map()  # Vẽ lại bản đồ
+        self.dem = 0  # Đặt lại số điểm đã chọn về 0
+        for y in range(len(MAP)):
+            for x in range(len(MAP[y])):
+                # Kiểm tra nếu ô hiện tại là 'o' hoặc 'x', đổi lại thành ' '
+                if MAP[y][x] in ['o', 'x']:
+                    MAP[y][x] = ' '
         self.info_label.config(text="Số ô đã thăm: 0 | Số ô đường đi: 0")
+
 
 if __name__ == "__main__":
     app = App()
